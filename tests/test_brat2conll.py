@@ -8,7 +8,7 @@ def test_brat2conll():
     output_file = '../sample_output_data/test.txt'
     verification_file = '../sample_output_data/verification.txt'
     format_convertor = FormatConvertor(input_dir, output_file)
-    format_convertor.parse_text()
+    format_convertor.process()
     with open(output_file, 'r') as fi:
         test = fi.read()
     with open(verification_file, 'r') as fi:

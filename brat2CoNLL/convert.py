@@ -1,13 +1,22 @@
 # Convert files from brat annotated format to CoNLL format
+import os.path
 from os import listdir, path
 from collections import namedtuple
 import argparse
+from pathlib import Path
 
 
 class Brat2ConnlConverter:
-    def __init__(self, input_dir: str, output_file: str):
+    def __init__(self, input_dir: Path, output_dir: Path):
         self.input_dir = input_dir
-        self.output_file = output_file
+
+        if not os.path.exists(input_dir) or not os.path.isdir(input_dir):
+            raise Exception("The input directory does not exists or is not a directory")
+
+        self.output_dir = output_dir
+
+        if not os.path.exists(output_dir) or not os.path.isdir(output_dir):
+            raise Exception("The output directory does not exists or is not a directory")
 
     def read_input(self, annotation_file: str, text_file: str):
         """Read the input BRAT files into python data structures
@@ -43,41 +52,60 @@ class Brat2ConnlConverter:
 
         return input_annotations, text_string
 
-    def parse_text(self):
+    def process(self):
         """Loop over all annotation files, and write tokens with their label to an output file"""
         file_pair_list = self.read_input_folder()
 
-        with open(self.output_file, 'w') as fo:
-            for file_count, file_pair in enumerate(file_pair_list):
-                annotation_file, text_file = file_pair.ann, file_pair.text
-                input_annotations, text_string = self.read_input(annotation_file, text_file)
-                text_tokens = text_string.split()
-                annotation_count = 0
-                current_ann_start = input_annotations[annotation_count]["start"]
-                current_ann_end = input_annotations[annotation_count]["end"]
-                num_annotations = len(input_annotations)
-                current_index = 0
-                num_tokens = len(text_tokens)
-                i = 0  # Initialize Token number
-                if file_count == 1:
-                    pass
-                while i < num_tokens:
-                    if current_index != current_ann_start:
-                        fo.write(f'{text_tokens[i]} O\n')
-                        current_index += len(text_tokens[i]) + 1
-                        i += 1
-                    else:
-                        label = input_annotations[annotation_count]["label"]
-                        while current_index <= current_ann_end and i < num_tokens:
-                            fo.write(f'{text_tokens[i]} {label}\n')
-                            current_index += len(text_tokens[i]) + 1
-                            i += 1
-                        annotation_count += 1
-                        if annotation_count < num_annotations:
-                            current_ann_start = input_annotations[annotation_count]["start"]
-                            current_ann_end = input_annotations[annotation_count]["end"]
+        for file_count, file_pair in enumerate(file_pair_list):
+            annotation_file, text_file = file_pair.ann, file_pair.text
+            converted = self.convert_file(annotation_file, text_file)
 
-                fo.write('\n')
+            output_file = Path(text_file).name.replace(".txt", ".conll")
+            with open(os.path.join(self.output_dir, output_file), 'w') as fo:
+                for token, label in converted:
+                    if token == "\n":
+                        fo.write("\n")
+                    fo.write(f'{token} {label}\n')
+
+
+    def convert_file(self, annotation_file, text_file) -> list:
+        output_stream = []
+        input_annotations, text_string = self.read_input(annotation_file, text_file)
+        text_tokens = text_string.split()
+        annotation_count = 0
+        current_ann_start = input_annotations[annotation_count]["start"]
+        current_ann_end = input_annotations[annotation_count]["end"]
+        num_annotations = len(input_annotations)
+        current_index = 0
+        num_tokens = len(text_tokens)
+
+        i = 0  # Initialize Token number
+        while i < num_tokens:
+            if current_index != current_ann_start:
+                label = 'O'
+                output_stream.append((f'{text_tokens[i]}', f'{label}'))
+                current_index += len(text_tokens[i]) + 1
+                i += 1
+            else:
+                label = input_annotations[annotation_count]["label"]
+
+                first = True
+                while current_index <= current_ann_end and i < num_tokens:
+                    prefix = "I-"
+                    if first:
+                        first = False
+                        prefix = "B-"
+                    output_stream.append((f'{text_tokens[i]}', f'{prefix}{label}'))
+                    current_index += len(text_tokens[i]) + 1
+                    i += 1
+                annotation_count += 1
+                if annotation_count < num_annotations:
+                    current_ann_start = input_annotations[annotation_count]["start"]
+                    current_ann_end = input_annotations[annotation_count]["end"]
+
+        output_stream.append(("\n",""))
+
+        return output_stream
 
     # def write_output(self):
     #     """Read input from a single file and write the output"""
@@ -97,7 +125,7 @@ class Brat2ConnlConverter:
                 file_pair_list.append(
                     file_pair(path.join(self.input_dir, file), path.join(self.input_dir, file.replace('.ann', '.txt'))))
             else:
-                raise (f"{file} does not have a corresponding text file")
+                raise f"{file} does not have a corresponding text file"
 
         return file_pair_list
 
@@ -105,21 +133,19 @@ class Brat2ConnlConverter:
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--input-dir",
-        dest="input_dir",
-        type=str,
-        default='',
+        "--input",
+        type=Path,
+        required=True,
         help="Input directory where Brat annotations are stored",
     )
 
     parser.add_argument(
-        "--output-file",
-        dest="output_file",
-        type=str,
-        default='',
-        help="Output file where CoNLL 2002 format annotations are saved",
+        "--output",
+        type=Path,
+        required=True,
+        help="Output directory where CoNLL 2002 format annotations are saved",
     )
 
     args = parser.parse_args()
-    format_convertor = Brat2ConnlConverter(args.input_dir, args.output_file)
-    format_convertor.parse_text()
+    format_convertor = Brat2ConnlConverter(args.input, args.output)
+    format_convertor.process()
