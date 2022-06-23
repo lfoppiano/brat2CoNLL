@@ -4,13 +4,10 @@ from collections import namedtuple
 import argparse
 
 
-class FormatConvertor:
+class Brat2ConnlConverter:
     def __init__(self, input_dir: str, output_file: str):
         self.input_dir = input_dir
         self.output_file = output_file
-
-        # self.input_dir = '/home/pranav/Dropbox (GaTech)/repos/brat2CoNLL/sample_input_data/'
-        # self.output_file = '/home/pranav/Dropbox (GaTech)/repos/brat2CoNLL/sample_output_data/test.txt'
 
     def read_input(self, annotation_file: str, text_file: str):
         """Read the input BRAT files into python data structures
@@ -91,7 +88,7 @@ class FormatConvertor:
         """Read multiple annotation files from a given input folder"""
         file_list = listdir(self.input_dir)
         annotation_files = sorted([file for file in file_list if file.endswith('.ann')])
-        # print(annotation_files)
+
         file_pair_list = []
         file_pair = namedtuple('file_pair', ['ann', 'text'])
         # The folder is assumed to contain *.ann and *.txt files with the 2 files of a pair having the same file name
@@ -108,7 +105,7 @@ class FormatConvertor:
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--input_dir",
+        "--input-dir",
         dest="input_dir",
         type=str,
         default='',
@@ -116,13 +113,13 @@ if __name__ == '__main__':
     )
 
     parser.add_argument(
-        "--output_file",
+        "--output-file",
         dest="output_file",
         type=str,
         default='',
-        help="Output file where CoNLL format annotations are saved",
+        help="Output file where CoNLL 2002 format annotations are saved",
     )
 
     args = parser.parse_args()
-    format_convertor = FormatConvertor(args.input_dir, args.output_file)
+    format_convertor = Brat2ConnlConverter(args.input_dir, args.output_file)
     format_convertor.parse_text()
