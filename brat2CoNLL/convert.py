@@ -3,22 +3,6 @@ from os import listdir, path
 from collections import namedtuple
 import argparse
 
-parser = argparse.ArgumentParser()
-parser.add_argument(
-    "--input_dir",
-    dest="input_dir",
-    type=str,
-    default='',
-    help="Input directory where Brat annotations are stored",
-)
-
-parser.add_argument(
-    "--output_file",
-    dest="output_file",
-    type=str,
-    default='',
-    help="Output file where CoNLL format annotations are saved",
-)
 
 class FormatConvertor:
     def __init__(self, input_dir: str, output_file: str):
@@ -49,6 +33,9 @@ class FormatConvertor:
             for line in fi:
                 annotation_record = {}
                 entry = line.split()
+                type = entry[0]
+                if not type.startswith("T"):
+                    continue
                 annotation_record["label"] = entry[1]
                 annotation_record["start"] = int(entry[2])
                 annotation_record["end"] = int(entry[3])
@@ -74,19 +61,19 @@ class FormatConvertor:
                 num_annotations = len(input_annotations)
                 current_index = 0
                 num_tokens = len(text_tokens)
-                i = 0 # Initialize Token number
-                if file_count ==1:
+                i = 0  # Initialize Token number
+                if file_count == 1:
                     pass
                 while i < num_tokens:
                     if current_index != current_ann_start:
                         fo.write(f'{text_tokens[i]} O\n')
-                        current_index += len(text_tokens[i])+1
+                        current_index += len(text_tokens[i]) + 1
                         i += 1
                     else:
                         label = input_annotations[annotation_count]["label"]
                         while current_index <= current_ann_end and i < num_tokens:
                             fo.write(f'{text_tokens[i]} {label}\n')
-                            current_index += len(text_tokens[i])+1
+                            current_index += len(text_tokens[i]) + 1
                             i += 1
                         annotation_count += 1
                         if annotation_count < num_annotations:
@@ -94,12 +81,12 @@ class FormatConvertor:
                             current_ann_end = input_annotations[annotation_count]["end"]
 
                 fo.write('\n')
-    
+
     # def write_output(self):
     #     """Read input from a single file and write the output"""
     #     input_annotations, text_string = self.read_input(annotation_file, text_file)
     #     self.parse_text(input_annotations, text_string)
-    
+
     def read_input_folder(self):
         """Read multiple annotation files from a given input folder"""
         file_list = listdir(self.input_dir)
@@ -110,13 +97,32 @@ class FormatConvertor:
         # The folder is assumed to contain *.ann and *.txt files with the 2 files of a pair having the same file name
         for file in annotation_files:
             if file.replace('.ann', '.txt') in file_list:
-                file_pair_list.append(file_pair(path.join(self.input_dir, file), path.join(self.input_dir, file.replace('.ann', '.txt'))))
+                file_pair_list.append(
+                    file_pair(path.join(self.input_dir, file), path.join(self.input_dir, file.replace('.ann', '.txt'))))
             else:
-                raise(f"{file} does not have a corresponding text file")
-        
+                raise (f"{file} does not have a corresponding text file")
+
         return file_pair_list
-            
+
+
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--input_dir",
+        dest="input_dir",
+        type=str,
+        default='',
+        help="Input directory where Brat annotations are stored",
+    )
+
+    parser.add_argument(
+        "--output_file",
+        dest="output_file",
+        type=str,
+        default='',
+        help="Output file where CoNLL format annotations are saved",
+    )
+
     args = parser.parse_args()
     format_convertor = FormatConvertor(args.input_dir, args.output_file)
     format_convertor.parse_text()
